@@ -1,4 +1,4 @@
+lbank-connector-python
 streamlit
 pandas
-numpy
 requests
