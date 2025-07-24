@@ -2,15 +2,16 @@ import streamlit as st
 import requests
 import pandas as pd
 
-API_URL = "https://api.lbank.info/v1/contract/ticker?symbol=BTC_USDT"
+# 올바른 LBank 선물 시세 API 주소 (예시)
+API_URL = "https://api.lbank.info/api/v1/contract/ticker?symbol=btc_usdt"
 
 def fetch_lbank_price():
     try:
         res = requests.get(API_URL, timeout=5)
         res.raise_for_status()
         data = res.json()
-        price = float(data['data']['last'])
-        volume = float(data['data']['vol'])
+        price = float(data['data']['last_price'])  # 실제 키 확인 필요
+        volume = float(data['data']['volume'])
         df = pd.DataFrame([{'symbol': 'BTC/USDT', 'price': price, 'volume': volume}])
         return df
     except Exception as e:
@@ -45,7 +46,7 @@ def generate_signal(price, ma, rsi):
     else:
         return 'HOLD'
 
-st.title("LBank BTC/USDT 실시간 타점 신호 (정식 API)")
+st.title("LBank BTC/USDT 실시간 타점 신호 (올바른 API 경로)")
 
 df = fetch_lbank_price()
 
