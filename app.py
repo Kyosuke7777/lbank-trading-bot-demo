@@ -1,43 +1,29 @@
 import streamlit as st
-import requests
 import pandas as pd
-import time
-import hmac
-import hashlib
-import urllib.parse
+from lbank_connector.client import Client
 
 API_KEY = "ccc758a1-fe95-4e2d-8be3-581844cbee21"
 SECRET_KEY = "4D364D019AD6C305DFFCCCEA19BE412C"
 
-def create_signature(params, secret_key):
-    sorted_params = sorted(params.items())
-    query_string = urllib.parse.urlencode(sorted_params)
-    signature = hmac.new(secret_key.encode(), query_string.encode(), hashlib.sha256).hexdigest()
-    return signature
+client = Client(api_key=API_KEY, secret_key=SECRET_KEY)
 
-def fetch_lbank_price():
-    base_url = "https://api.lbank.info/api/v1/contract/ticker"
-    params = {
-        "api_key": API_KEY,
-        "symbol": "btc_usdt",
-        "timestamp": int(time.time() * 1000)
-    }
-    params["sign"] = create_signature(params, SECRET_KEY)
-
+def fetch_lbank_data():
     try:
-        res = requests.get(base_url, params=params, timeout=5)
-        res.raise_for_status()
-        data = res.json()
-        price = float(data['data']['last_price'])
-        volume = float(data['data']['volume'])
-        df = pd.DataFrame([{'symbol': 'BTC/USDT', 'price': price, 'volume': volume}])
+        result = client.get_contract_ticker("btc_usdt")
+        data = [{
+            "symbol": "BTC/USDT",
+            "price": float(result['last_price']),
+            "volume": float(result['volume'])
+        }]
+        df = pd.DataFrame(data)
         return df
     except Exception as e:
         st.error(f"API 호출 실패: {e}")
+        # 임시 예시 데이터 반환
         data = {
-            'symbol': ['BTC/USDT', 'ETH/USDT', 'XRP/USDT'],
-            'price': [30000, 2000, 0.5],
-            'volume': [10000, 5000, 2000]
+            'symbol': ['BTC/USDT'],
+            'price': [30000],
+            'volume': [10000]
         }
         return pd.DataFrame(data)
 
@@ -64,9 +50,9 @@ def generate_signal(price, ma, rsi):
     else:
         return 'HOLD'
 
-st.title("LBank BTC/USDT 실시간 타점 신호 (HMAC 인증 포함)")
+st.title("LBank BTC/USDT 실시간 타점 신호 (공식 라이브러리 연동)")
 
-df = fetch_lbank_price()
+df = fetch_lbank_data()
 
 st.write("### 현재 시세")
 st.dataframe(df)
