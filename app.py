@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from lbank_connector.client import Client
+from lbank_connector_python import Client  # 수정된 임포트
 
 API_KEY = "ccc758a1-fe95-4e2d-8be3-581844cbee21"
 SECRET_KEY = "4D364D019AD6C305DFFCCCEA19BE412C"
@@ -50,7 +50,7 @@ def generate_signal(price, ma, rsi):
     else:
         return 'HOLD'
 
-st.title("LBank BTC/USDT 실시간 타점 신호 (공식 라이브러리 연동)")
+st.title("LBank BTC/USDT 실시간 타점 신호 (수정 완료)")
 
 df = fetch_lbank_data()
 
