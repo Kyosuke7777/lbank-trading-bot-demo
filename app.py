@@ -1,16 +1,34 @@
 import streamlit as st
 import requests
 import pandas as pd
+import time
+import hmac
+import hashlib
+import urllib.parse
 
-# 올바른 LBank 선물 시세 API 주소 (예시)
-API_URL = "https://api.lbank.info/api/v1/contract/ticker?symbol=btc_usdt"
+API_KEY = "ccc758a1-fe95-4e2d-8be3-581844cbee21"
+SECRET_KEY = "4D364D019AD6C305DFFCCCEA19BE412C"
+
+def create_signature(params, secret_key):
+    sorted_params = sorted(params.items())
+    query_string = urllib.parse.urlencode(sorted_params)
+    signature = hmac.new(secret_key.encode(), query_string.encode(), hashlib.sha256).hexdigest()
+    return signature
 
 def fetch_lbank_price():
+    base_url = "https://api.lbank.info/api/v1/contract/ticker"
+    params = {
+        "api_key": API_KEY,
+        "symbol": "btc_usdt",
+        "timestamp": int(time.time() * 1000)
+    }
+    params["sign"] = create_signature(params, SECRET_KEY)
+
     try:
-        res = requests.get(API_URL, timeout=5)
+        res = requests.get(base_url, params=params, timeout=5)
         res.raise_for_status()
         data = res.json()
-        price = float(data['data']['last_price'])  # 실제 키 확인 필요
+        price = float(data['data']['last_price'])
         volume = float(data['data']['volume'])
         df = pd.DataFrame([{'symbol': 'BTC/USDT', 'price': price, 'volume': volume}])
         return df
@@ -46,7 +64,7 @@ def generate_signal(price, ma, rsi):
     else:
         return 'HOLD'
 
-st.title("LBank BTC/USDT 실시간 타점 신호 (올바른 API 경로)")
+st.title("LBank BTC/USDT 실시간 타점 신호 (HMAC 인증 포함)")
 
 df = fetch_lbank_price()
 
