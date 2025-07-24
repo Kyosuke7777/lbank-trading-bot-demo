@@ -1,43 +1,63 @@
 import streamlit as st
 import requests
 import pandas as pd
-import time
+import numpy as np
 
-# 제목
+# 이동평균 계산
+def calculate_ma(prices, window=20):
+    return prices.rolling(window=window).mean()
+
+# RSI 계산
+def calculate_rsi(prices, window=14):
+    delta = prices.diff()
+    up = delta.clip(lower=0)
+    down = -1 * delta.clip(upper=0)
+    ma_up = up.rolling(window=window).mean()
+    ma_down = down.rolling(window=window).mean()
+    rs = ma_up / ma_down
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+# LBank 선물 상위종목 실시간 API 호출 (예시)
+def get_lbank_data():
+    url = 'https://api.lbank.info/api/v1/ticker.do?symbol=btc_usdt'  # BTC/USDT 단일 심볼 예시
+    try:
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        price = float(data['ticker']['latest'])
+        volume = float(data['ticker']['vol'])
+        df = pd.DataFrame([{'symbol': 'BTC/USDT', 'price': price, 'volume': volume}])
+        return df
+    except Exception as e:
+        st.error(f"API 호출 실패: {e}")
+        # 임시 데이터로 대체
+        return pd.DataFrame({
+            'symbol': ['BTC/USDT', 'ETH/USDT', 'XRP/USDT'],
+            'price': [30000, 2000, 0.5],
+            'volume': [10000, 5000, 2000]
+        })
+
+def generate_signal(price, ma, rsi):
+    if price > ma and rsi < 70:
+        return 'LONG'
+    elif price < ma and rsi > 30:
+        return 'SHORT'
+    else:
+        return 'HOLD'
+
 st.title("LBank 선물 실시간 타점 신호")
 
-# LBank API URL (예시)
-API_URL = "https://api.lbkex.com/v2/future/tickers"
+df = get_lbank_data()
 
-# 지표 계산 함수 예시 (간단히 예시)
-def fetch_data():
-    try:
-        res = requests.get(API_URL)
-        data = res.json()
-        return data.get("data", [])
-    except Exception as e:
-        st.error(f"데이터 로드 실패: {e}")
-        return []
+st.write("### 현재 주요 종목 시세")
+st.dataframe(df)
 
-def process_data(raw_data):
-    df = pd.DataFrame(raw_data)
-    # 필터: 거래량 상위 30개
-    df = df.sort_values(by="vol", ascending=False).head(30)
-    # 필요한 컬럼만
-    df = df[["symbol", "last", "vol"]]
-    df.columns = ["종목", "현재가", "거래량"]
-    return df
+df['MA20'] = calculate_ma(df['price'])
+df['RSI14'] = calculate_rsi(df['price'])
 
-# 데이터 갱신 주기 (초)
-REFRESH_INTERVAL = 10
+df['Signal'] = df.apply(lambda row: generate_signal(row['price'], row['MA20'], row['RSI14']), axis=1)
 
-placeholder = st.empty()
+st.write("### 타점 신호")
+st.dataframe(df[['symbol', 'price', 'MA20', 'RSI14', 'Signal']])
 
-while True:
-    raw_data = fetch_data()
-    if raw_data:
-        df = process_data(raw_data)
-        with placeholder.container():
-            st.write(f"업데이트 시각: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-            st.dataframe(df)
-    time.sleep(REFRESH_INTERVAL)
+st.write("**참고**: API 호출 실패 시 임시 데이터로 대체합니다.")
